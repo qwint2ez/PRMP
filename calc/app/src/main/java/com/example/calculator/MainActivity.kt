@@ -1,12 +1,16 @@
 package com.example.calculator
 
+import android.content.Context
+import android.os.Build
 import android.os.Bundle
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.example.calculator.databinding.ActivityMainBinding
 import com.example.calculator.data.Operator
 import com.example.calculator.viewmodel.CalculatorViewModel
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 class MainActivity : AppCompatActivity() {
 
@@ -24,7 +28,11 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.btn0.setOnClickListener { viewModel.onDigitClick("0") }
-        binding.btn1.setOnClickListener { viewModel.onDigitClick("1") }
+        // binding.btn1.setOnClickListener { viewModel.onDigitClick("1") }
+        binding.btn1.setOnClickListener {
+            vibrate()
+            viewModel.onDigitClick("1")
+        }
         binding.btn2.setOnClickListener { viewModel.onDigitClick("2") }
         binding.btn3.setOnClickListener { viewModel.onDigitClick("3") }
         binding.btn4.setOnClickListener { viewModel.onDigitClick("4") }
@@ -41,5 +49,16 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnEquals.setOnClickListener { viewModel.onEqualClick() }
         binding.btnClear.setOnClickListener { viewModel.onClearClick() }
+    }
+
+    private fun vibrate() {
+        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+            vibratorManager.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        }
+        vibrator.vibrate(500)
     }
 }

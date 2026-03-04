@@ -5,6 +5,11 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.calculator.data.Calculator
 import com.example.calculator.data.Operator
+//import android.content.Context
+//import android.os.Vibrator
+//import android.os.VibratorManager
+//import android.os.Build
+//import androidx.lifecycle.AndroidViewModel
 
 class CalculatorViewModel : ViewModel() {
 
