@@ -35,6 +35,7 @@ class MainActivity : AppCompatActivity() {
 
         val defaultTheme = ThemeSettings(
             primaryColor = 0xFF6200EE.toInt(),
+            backgroundColor = 0xFFFFFFFF.toInt(),
             textColor = 0xFFFFFFFF.toInt(),
             statusBarColor = 0xFF6200EE.toInt()
         )
@@ -145,20 +146,21 @@ class MainActivity : AppCompatActivity() {
 
     private fun showThemeSelectionDialog() {
         val colors = arrayOf(
-            "Фиолетовый" to 0xFF6200EE.toInt(),
-            "Синий" to 0xFF2196F3.toInt(),
-            "Красный" to 0xFFF44336.toInt()
+            "Фиолетовый" to Pair(0xFF6200EE.toInt(), 0xFFD1C4E9.toInt()),
+            "Синий" to Pair(0xFF2196F3.toInt(), 0xFFBBDEFB.toInt()),
+            "Красный" to Pair(0xFFF44336.toInt(), 0xFFFFCDD2.toInt())
         )
         val colorNames = colors.map { it.first }.toTypedArray()
 
         AlertDialog.Builder(this)
             .setTitle("Выберите цвет темы")
             .setItems(colorNames) { _, which ->
-                val selectedColor = colors[which].second
+                val (primary, background) = colors[which].second
                 val newSettings = ThemeSettings(
-                    primaryColor = selectedColor,
+                    primaryColor = primary,
+                    backgroundColor = background,
                     textColor = 0xFFFFFFFF.toInt(),
-                    statusBarColor = selectedColor
+                    statusBarColor = primary
                 )
                 applyTheme(newSettings)
                 saveTheme(newSettings)
@@ -168,7 +170,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun applyTheme(settings: ThemeSettings) {
         applyThemeToAllButtons(settings)
-        window?.apply {
+        binding.root.setBackgroundColor(settings.backgroundColor)
+            window?.apply {
             addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
             statusBarColor = settings.statusBarColor
         }
