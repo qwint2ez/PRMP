@@ -3,6 +3,7 @@ package com.example.calculator.data
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import com.google.firebase.firestore.Query
+import android.util.Log
 
 class HistoryRepository {
     private val db = FirebaseFirestore.getInstance()
@@ -18,8 +19,11 @@ class HistoryRepository {
                 .orderBy("timestamp", Query.Direction.DESCENDING)
                 .get()
                 .await()
+            Log.d("HistoryRepo", "Loaded ${snapshot.size()} entries")
+            snapshot.documents.forEach { Log.d("HistoryRepo", "Entry: ${it.data}") }
             snapshot.toObjects(HistoryEntry::class.java)
         } catch (e: Exception) {
+            Log.e("HistoryRepo", "Error loading history", e)
             emptyList()
         }
     }

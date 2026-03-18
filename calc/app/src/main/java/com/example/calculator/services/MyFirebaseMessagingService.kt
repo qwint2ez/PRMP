@@ -1,8 +1,8 @@
-package com.example.calculator
+package com.example.calculator.services
 
+import android.R
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.content.Context
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.google.firebase.messaging.FirebaseMessagingService
@@ -26,7 +26,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val channelId = "calculator_notifications"
         val notificationId = System.currentTimeMillis().toInt()
 
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -42,7 +42,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle(title ?: "Калькулятор")
             .setContentText(body ?: "Новое уведомление")
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.drawable.ic_dialog_info)
             .setAutoCancel(true)
             .build()
 

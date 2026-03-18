@@ -1,15 +1,23 @@
 package com.example.calculator.ui
 
+import android.app.KeyguardManager
+import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.view.Menu
 import android.view.MenuItem
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import com.example.calculator.R
@@ -17,8 +25,11 @@ import com.example.calculator.data.Operator
 import com.example.calculator.data.ThemeRepository
 import com.example.calculator.data.ThemeSettings
 import com.example.calculator.databinding.ActivityMainBinding
+import com.example.calculator.security.BiometricKeyManager
+import com.example.calculator.security.PinManager
 import com.example.calculator.viewmodel.CalculatorViewModel
 import kotlinx.coroutines.launch
+import java.util.concurrent.Executor
 
 class MainActivity : AppCompatActivity() {
 
@@ -46,6 +57,10 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val settings = themeRepository.loadTheme()
             settings?.let { applyTheme(it) }
+        }
+
+        if (!BiometricKeyManager.keyExists() && isDeviceSecure() && BiometricKeyManager.isBiometricAvailable(this)) {
+            BiometricKeyManager.createKey(this)
         }
 
         viewModel.displayText.observe(this) { text ->
@@ -118,8 +133,8 @@ class MainActivity : AppCompatActivity() {
         binding.btnEquals.setOnClickListener {
             vibrate(100)
             viewModel.onEqualClick()
-            val expression = viewModel.getCurrentExpression() // получаем выражение
-            val result = binding.tvResult.text.toString()     // результат уже обновлён
+            val expression = viewModel.getCurrentExpression()
+            val result = binding.tvResult.text.toString()
             viewModel.saveToHistory(expression, result)
         }
 
@@ -131,6 +146,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.main_menu, menu)
+        menu?.add(0, 1001, 0, "История")
+        menu?.add(0, 1002, 0, "Сбросить PIN")
         return true
     }
 
@@ -140,8 +157,49 @@ class MainActivity : AppCompatActivity() {
                 showThemeSelectionDialog()
                 true
             }
+            1001 -> {
+                showAuthDialog()
+                true
+            }
+            1002 -> {
+                PinManager.clearPin(this)
+                Toast.makeText(this, "PIN сброшен. При следующем входе создайте новый.", Toast.LENGTH_SHORT).show()
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
+    }
+
+    private fun showAuthDialog() {
+        val items = mutableListOf<String>()
+        val biometricAvailable = BiometricKeyManager.isBiometricAvailable(this)
+        val pinSet = PinManager.isPinSet(this)
+
+        if (biometricAvailable) {
+            items.add("Использовать биометрию")
+        }
+        if (pinSet) {
+            items.add("Ввести PIN-код")
+        }
+        if (!pinSet) {
+            items.add("Установить PIN-код")
+        }
+
+        if (items.isEmpty()) {
+            Toast.makeText(this, "Нет доступных способов входа", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Выберите способ входа")
+            .setItems(items.toTypedArray()) { _, which ->
+                when (items[which]) {
+                    "Использовать биометрию" -> showBiometricAuth()
+                    "Ввести PIN-код" -> startActivity(Intent(this, EnterPinActivity::class.java))
+                    "Установить PIN-код" -> startActivity(Intent(this, SetupPinActivity::class.java))
+                }
+            }
+            .show()
     }
 
     private fun showThemeSelectionDialog() {
@@ -171,7 +229,7 @@ class MainActivity : AppCompatActivity() {
     private fun applyTheme(settings: ThemeSettings) {
         applyThemeToAllButtons(settings)
         binding.root.setBackgroundColor(settings.backgroundColor)
-            window?.apply {
+        window?.apply {
             addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
             statusBarColor = settings.statusBarColor
         }
@@ -205,6 +263,73 @@ class MainActivity : AppCompatActivity() {
             @Suppress("DEPRECATION")
             getSystemService(VIBRATOR_SERVICE) as Vibrator
         }
-        vibrator.vibrate(duration)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(VibrationEffect.createOneShot(duration, VibrationEffect.DEFAULT_AMPLITUDE))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(duration)
+        }
+    }
+
+    private fun isDeviceSecure(): Boolean {
+        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            keyguardManager.isDeviceSecure
+        } else {
+            keyguardManager.isKeyguardSecure
+        }
+    }
+
+    private fun showBiometricAuth() {
+        val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                BiometricManager.Authenticators.DEVICE_CREDENTIAL
+
+        val biometricManager = BiometricManager.from(this)
+
+        when (val result = biometricManager.canAuthenticate(authenticators)) {
+            BiometricManager.BIOMETRIC_SUCCESS -> {
+                startBiometricPrompt(authenticators)
+            }
+            BiometricManager.BIOMETRIC_ERROR_UNSUPPORTED -> {
+                startBiometricPrompt(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+            }
+            else -> {
+                Toast.makeText(this, "Биометрия недоступна", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun startBiometricPrompt(authenticators: Int) {
+        val executor = ContextCompat.getMainExecutor(this)
+        val biometricPrompt = BiometricPrompt(this, executor,
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    super.onAuthenticationSucceeded(result)
+                    openHistory()
+                }
+
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    super.onAuthenticationError(errorCode, errString)
+                    Toast.makeText(this@MainActivity, "Ошибка: $errString", Toast.LENGTH_SHORT).show()
+                }
+            })
+
+        val promptBuilder = BiometricPrompt.PromptInfo.Builder()
+            .setTitle("Аутентификация")
+            .setSubtitle("Подтвердите личность для доступа к истории")
+
+        if (authenticators and BiometricManager.Authenticators.DEVICE_CREDENTIAL == 0) {
+            promptBuilder.setNegativeButtonText("Отмена")
+        }
+
+        val promptInfo = promptBuilder
+            .setAllowedAuthenticators(authenticators)
+            .build()
+        biometricPrompt.authenticate(promptInfo)
+    }
+
+    private fun openHistory() {
+        startActivity(Intent(this, HistoryActivity::class.java))
     }
 }

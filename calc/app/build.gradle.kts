@@ -18,7 +18,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.calculator"
-        minSdk = 23
+        minSdk = 29
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -42,6 +42,7 @@ android {
 }
 
 dependencies {
+    implementation("androidx.biometric:biometric-ktx:1.2.0-alpha05")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.0")
@@ -56,6 +57,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2")
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.6.2")
     implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation("androidx.biometric:biometric-ktx:1.2.0-alpha05")
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
